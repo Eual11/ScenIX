@@ -15,11 +15,11 @@ export class Selector {
       this.raycaster.setFromCamera(this.mouseVec, sceneManager.camera)
       const hit_objs = this.raycaster.intersectObjects(sceneManager.scene.children, false)
 
-      const hit_selectable = hit_objs.filter((hit) => editor.selectable_objs.includes(hit.object))
+      const hit_selectable = hit_objs.filter((h)=>h.object.userData.editorId!==undefined)
       const first = hit_selectable.length ? hit_selectable[0] : null
 
       if (first) {
-        editor.select(first.object)
+        editor.select(editor.objects.get(first.object.userData.editorId)??null)
       } else {
         editor.select(null)
       }

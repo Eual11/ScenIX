@@ -1,19 +1,19 @@
-import { Object3D } from "three"
 import { TransformControls, type TransformControlsMode } from "three/examples/jsm/Addons.js"; 
 import type { SceneManager } from "./SceneManager";
-import { AddObjectCommand,RemoveObjectCommand } from "./commands/BasicEditorCommands"; 
+import { AddObjectCommand,RemoveObjectCommand, TransformCommand } from "./commands/BasicEditorCommands"; 
 import { EditorCommandReceiver } from "./commands/History";
 import { Selector } from "./Selector";
+import type { EditorObject } from "./EditorObject";
 
 
 export class Editor {
-  selectedObject: Object3D|null= null
+  selectedObject: EditorObject|null= null
   transform: TransformControls;
   commandsReciever: EditorCommandReceiver = new EditorCommandReceiver()
   selector:Selector
-  selectable_objs:Object3D[] = []
+  currentActiveCmd:TransformCommand|null = null
+  objects:Map<string,EditorObject> = new Map()
   //TODO: Selection to handle selection
-
   constructor(public sceneManager:SceneManager) {
     this.transform = new TransformControls(sceneManager.camera,sceneManager.renderer.domElement)
     sceneManager.scene.add(this.transform.getHelper())
@@ -24,27 +24,44 @@ export class Editor {
 
     
     this.selector = new Selector(sceneManager, this)
+
+    this.transform.addEventListener("mouseDown",()=>{
+     if(!this.selectedObject)  return
+     this.currentActiveCmd = new TransformCommand(this.selectedObject.mesh)
+    })
+    this.transform.addEventListener("mouseUp",()=>{
+      if(!this.selectedObject || !this.currentActiveCmd) {
+        return
+      }
+      this.currentActiveCmd.storeAfter()
+      this.commandsReciever.execute(this.currentActiveCmd)
+      this.currentActiveCmd = null
+    })
   }
 
-  add(obj:Object3D):void {
-    const addObjCmd = new AddObjectCommand(this.sceneManager.scene, obj)
+  add(obj:EditorObject):void {
+    const addObjCmd = new AddObjectCommand(this.sceneManager.scene, obj.mesh)
     this.commandsReciever.execute(addObjCmd)
-    this.selectable_objs.push(obj)
+    this.objects.set(obj.id, obj)
   }
-  remove(obj:Object3D){
-    const removeObjCmd = new RemoveObjectCommand(this.sceneManager.scene,obj)
+  remove(obj:EditorObject){
+    const removeObjCmd = new RemoveObjectCommand(this.sceneManager.scene,obj.mesh)
+    if(obj == this.selectedObject) {
+      this.select(null)
+    }
     this.commandsReciever.execute(removeObjCmd)
-    this.selectable_objs = this.selectable_objs.filter((o)=>o!=obj)
+    this.objects.delete(obj.id)
     
   }
   setTransformMode(mode:TransformControlsMode) {
     this.transform.setMode(mode)
   }
-  select(obj:Object3D|null) {
+  select(obj:EditorObject|null) {
     this.selectedObject = obj
     this.transform.detach()
-    if(obj) this.transform.attach(obj)
+    if(obj) this.transform.attach(obj.mesh)
   }
 
   
 }
+

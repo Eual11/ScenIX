@@ -1,24 +1,14 @@
 import './style.css'
 
-import {
-  Scene,
-  PerspectiveCamera,
-  WebGLRenderer,
-  AxesHelper,
-  GridHelper,
-  BoxGeometry,
-  MeshNormalMaterial,
-  Mesh,
-  Object3D,
-} from "three";
 import { SceneManager } from './core/SceneManager'
 import { Editor } from './core/Editor'
+import { createBox, createCylinder, createSphere } from './core/ShapeFactory';
 const sceneManager = new SceneManager()
 const editor = new Editor(sceneManager)
 
-const geo = new BoxGeometry(1, 1, 1); 
-const mat = new MeshNormalMaterial();
-editor.add(new Mesh(geo, mat));
+editor.add(createBox());
+editor.add(createSphere());
+editor.add(createCylinder());
 
 
 function animate() {
