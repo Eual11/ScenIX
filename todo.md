@@ -9,7 +9,7 @@ Implementing a scene editor
 [ ] Improve GridHelper, AxisHelper
 
 ### Add Objects
-[ ] Add box
-[ ] Add Sphere
-[ ] Add Cylinder
+[x] Add box
+[x] Add Sphere
+[x] Add Cylinder
 [ ] Add Placing logic, better logic is to stare placing at the orign and then randomize if origin is taken
