@@ -49,3 +49,5 @@ or check the deployed version [ScneIX](https://scen-ix.vercel.app/)
 * Improve UI composability, possibly with state management
 * Enable editing of faces and vertices with selection
 * Multi-select objects
+* Grouping, duplication, Copy/Cut Paste objects like many CAD software
+* Add more permitive shapes like torus, cones... and allow constructive solid geometry operations such as union, intersection and difference
