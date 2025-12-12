@@ -137,7 +137,7 @@
           <div class="ui-menugroup">
             <button class="ui-topbar-menu" type="button">Help</button>
             <div class="ui-dropdown ui-panel" role="menu">
-              <button class="ui-menu-item" type="button" data-ui-action="help.about">About</button>
+              <button class="ui-menu-item" type="button" data-ui-action="help.about">How to use</button>
             </div>
           </div>
         </div>
@@ -157,13 +157,26 @@
         <div class="ui-help-card ui-panel" role="document">
           <div class="ui-help-header">
             <div class="ui-help-title">Help</div>
-            <button class="ui-help-close" type="button" id="help-close">
-              <i data-lucide="x"></i>
-            </button>
           </div>
           <div class="ui-help-body" id="help-body">
-            <div style="font-size:12px;opacity:.85;line-height:1.5">
-            Stuff
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div>
+                <div style="font-size:12px;font-weight:600;margin-bottom:6px">Editor</div>
+                <div style="font-size:12px;opacity:.85;line-height:1.55">
+                   Use the Topbar for File/Edit/View/Editor actions, the Sidebar for tools and quick-add, and the Inspector to edit the selected object’s transform.
+                </div>
+              </div>
+              <div>
+                <div style="font-size:12px;font-weight:600;margin-bottom:6px">Shortcuts</div>
+                <div style="font-size:12px;opacity:.85;line-height:1.55;display:flex;flex-direction:column;gap:6px">
+                  <div><span style="opacity:.9">Ctrl/Cmd + Z</span> Undo</div>
+                  <div><span style="opacity:.9">Ctrl/Cmd + Shift + Z</span> Redo</div>
+                  <div><span style="opacity:.9">Ctrl/Cmd + Y</span> Redo</div>
+                  <div><span style="opacity:.9">Shift + M</span>  Move/Translate Mode</div>
+                  <div><span style="opacity:.9">Shift + S</span>  Scale Mode</div>
+                  <div><span style="opacity:.9">Shift + R</span>  Rotate Mode</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -432,6 +445,48 @@
         if (help.getAttribute("data-open") !== "true") return;
         if (e.target.closest(".ui-help-card")) return;
         help.setAttribute("data-open", "false");
+      });
+
+      const isTypingTarget = (el) => {
+        if (!el) return false;
+        const tag = el.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+        if (el.isContentEditable) return true;
+        return false;
+      };
+
+      window.addEventListener("keydown", (e) => {
+        if (isTypingTarget(e.target)) return;
+        const a = actions();
+        if (!a) return;
+        const mod = e.ctrlKey || e.metaKey||e.shiftKey;
+        if (!mod) return;
+        const k = String(e.key || "").toLowerCase();
+        if (k === "z" && !e.shiftKey) {
+          e.preventDefault();
+          a.undo?.();
+          return;
+        }
+        if (k === "y" || (k === "z" && e.shiftKey)) {
+          e.preventDefault();
+          a.redo?.();
+          return;
+        }
+        if(k==="m" && e.shiftKey) {
+          e.preventDefault()
+          a.setMode("translate")
+          return
+        }
+          if(k==="r" && e.shiftKey) {
+          e.preventDefault()
+          a.setMode("rotate")
+          return
+        }
+      if(k==="s" && e.shiftKey) {
+          e.preventDefault()
+          a.setMode("scale")
+          return
+        }
       });
     </script>
   </body>
