@@ -14,6 +14,12 @@ w.EditorActions = {
   addCylinder: () => editor.add(createCylinder()),
   addSphere: () => editor.add(createSphere()),
   setMode: (mode: "translate" | "rotate" | "scale") => editor.setTransformMode(mode),
+  undo: () => editor.commandsReciever.undo(),
+  redo: () => editor.commandsReciever.redo(),
+  exportJson: () => editor.saveScene(),
+  importJson: async (json: string) => {
+    await editor.loadScene(json)
+  },
   showGrid: (v: boolean) => sceneManager.showGrid(v),
   showAxis: (v: boolean) => sceneManager.showAxis(v),
   setSnapToGrid: (v: boolean) => {
@@ -52,9 +58,6 @@ w.EditorActions = {
           }
         : null
     }
-  },
-  undo:()=>{
-    editor.commandsReciever.undo()
   }
 
 }
