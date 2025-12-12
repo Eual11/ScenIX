@@ -9,7 +9,6 @@ body {
   height: 100vh;
   overflow: hidden;
   display:block;
-  background: #000;
 }
 #scene {
   display: block;

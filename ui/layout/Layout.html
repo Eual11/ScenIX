@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Editor UI</title>
+    <link rel="stylesheet" href="/ui/theme/themes.css" />
+    <link rel="stylesheet" href="/ui/layout/Layout.css" />
+    <link rel="stylesheet" href="/ui/topbar/Topbar.css" />
+    <link rel="stylesheet" href="/ui/sidebar/Sidebar.css" />
+    <link rel="stylesheet" href="/ui/inspector/InspectorCard.css" />
+    <script src="https://unpkg.com/lucide@latest"></script>
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+    <div id="ui-root"></div>
+
+    <script type="module">
+      import { initTheme, toggleTheme, getTheme } from "/ui/theme/ThemeProvider.js";
+
+      const emit = (type, detail) => window.dispatchEvent(new CustomEvent(type, { detail }));
+      const clamp = (n, a, b) => Math.min(b, Math.max(a, n));
+      const toNum = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+      const clone = (v) => (globalThis.structuredClone ? globalThis.structuredClone(v) : JSON.parse(JSON.stringify(v)));
+      const radToDeg = (r) => (r * 180) / Math.PI;
+      const maybeRadToDeg = (r) => (Math.abs(r) <= Math.PI * 2 + 0.001 ? radToDeg(r) : r);
+
+      async function loadInto(url, mount) {
+        const res = await fetch(url, { cache: "no-store" });
+        mount.innerHTML = await res.text();
+      }
+
+      function createIcons(root) {
+        const lucide = window.lucide;
+        if (!lucide?.createIcons) return;
+        lucide.createIcons({ root });
+      }
+
+      function createSelectionAPI() {
+        let selected = null;
+        const normalize = (obj) => {
+          const o = obj || {};
+          const pos = o.position || {};
+          const rot = o.rotation || {};
+          const scl = o.scale || {};
+          return {
+            id: o.id ?? null,
+            name: o.name ?? "Object",
+            position: { x: toNum(pos.x), y: toNum(pos.y), z: toNum(pos.z) },
+            rotation: { x: toNum(rot.x), y: toNum(rot.y), z: toNum(rot.z) },
+            scale: { x: toNum(scl.x ?? 1), y: toNum(scl.y ?? 1), z: toNum(scl.z ?? 1) }
+          };
+        };
+        return {
+          setSelectedObject(obj) {
+            selected = obj ? normalize(obj) : null;
+            emit("ui:selection", { object: selected ? clone(selected) : null });
+          },
+          clearSelection() {
+            selected = null;
+            emit("ui:selection", { object: null });
+          },
+          getSelectedObject() {
+            return selected;
+          }
+        };
+      }
+
+      function bindTopbar(root) {
+        const actions = [...root.querySelectorAll("[data-ui-action]")];
+        const toggles = [...root.querySelectorAll("[data-ui-toggle]")];
+        const inputs = [...root.querySelectorAll("[data-ui-input]")];
+        const settingsBtn = root.querySelector('[data-action="settings"]');
+
+        const state = {
+          "view.grid": true,
+          "view.axis": false,
+          "editor.snapToGrid": true,
+          "editor.gridSize": 1
+        };
+
+        const sync = () => {
+          toggles.forEach((b) => {
+            const k = b.getAttribute("data-ui-toggle");
+            b.setAttribute("aria-pressed", state[k] ? "true" : "false");
+          });
+          inputs.forEach((el) => {
+            const k = el.getAttribute("data-ui-input");
+            if (k === "editor.gridSize") el.value = String(state[k]);
+          });
+        };
+
+        actions.forEach((b) =>
+          b.addEventListener("click", () => emit("ui:action", { id: b.getAttribute("data-ui-action") }))
+        );
+
+        toggles.forEach((b) =>
+          b.addEventListener("click", () => {
+            const k = b.getAttribute("data-ui-toggle");
+            state[k] = !state[k];
+            sync();
+            emit("ui:action", { id: k, value: state[k] });
+          })
+        );
+
+        inputs.forEach((el) =>
+          el.addEventListener("change", () => {
+            const k = el.getAttribute("data-ui-input");
+            const v = toNum(el.value);
+            state[k] = v;
+            sync();
+            emit("ui:action", { id: k, value: v });
+          })
+        );
+
+        settingsBtn?.addEventListener("click", () => emit("ui:settings", { open: true }));
+        sync();
+      }
+
+      function bindSidebar(root) {
+        const buttons = [...root.querySelectorAll("[data-tool]")];
+        buttons.forEach((b) => b.addEventListener("click", () => emit("ui:tool", { tool: b.getAttribute("data-tool") })));
+      }
+
+      function bindInspector(root, api) {
+        const card = root.querySelector("[data-ui-inspector]");
+        const nameEl = root.querySelector("[data-field='name']");
+        const delBtn = root.querySelector("[data-action='delete']");
+        const rows = [...root.querySelectorAll("[data-bind]")];
+
+        const setVisible = (on) => {
+          card.hidden = !on;
+        };
+
+        const updateUI = () => {
+          const o = api.getSelectedObject();
+          setVisible(!!o);
+          if (!o) return;
+          nameEl.textContent = String(o.name ?? "Selected");
+          rows.forEach((row) => {
+            const bind = row.getAttribute("data-bind");
+            const axis = row.getAttribute("data-axis");
+            const range = row.querySelector('input[type="range"]');
+            const number = row.querySelector('input[type="number"]');
+            const value = toNum(o?.[bind]?.[axis]);
+            range.value = String(value);
+            number.value = String(value);
+          });
+        };
+
+        const commit = (bind, axis, value) => {
+          const o = api.getSelectedObject();
+          if (!o) return;
+          o[bind] = { ...(o[bind] || {}), [axis]: value };
+          emit("ui:transform", { object: clone(o), path: `${bind}.${axis}`, value });
+        };
+
+        rows.forEach((row) => {
+          const bind = row.getAttribute("data-bind");
+          const axis = row.getAttribute("data-axis");
+          const range = row.querySelector('input[type="range"]');
+          const number = row.querySelector('input[type="number"]');
+
+          const apply = (raw) => {
+            const v = clamp(toNum(raw), toNum(range.min), toNum(range.max));
+            range.value = String(v);
+            number.value = String(v);
+            commit(bind, axis, v);
+          };
+
+          range.addEventListener("input", (e) => apply(e.target.value));
+          number.addEventListener("change", (e) => apply(e.target.value));
+        });
+
+        delBtn?.addEventListener("click", () => emit("ui:deleteSelected", { object: api.getSelectedObject() }));
+
+        return { updateUI };
+      }
+
+      function bindSettings(pop) {
+        const themeBtn = pop.querySelector("[data-theme-toggle]");
+        const label = pop.querySelector("[data-theme-label]");
+        const sync = () => (label.textContent = getTheme() === "dark" ? "Dark" : "Light");
+        sync();
+        themeBtn.addEventListener("click", () => {
+          toggleTheme();
+          sync();
+          emit("ui:theme", { theme: getTheme() });
+        });
+      }
+
+      function createShell(root) {
+        root.innerHTML = `
+          <div class="ui-shell">
+            <div class="ui-topbar-slot" id="ui-topbar"></div>
+            <div class="ui-sidebar-slot" id="ui-sidebar"></div>
+            <div class="ui-viewport">
+              <div class="ui-viewport-surface" id="ui-viewport"></div>
+              <div class="ui-viewport-placeholder">Viewport</div>
+            </div>
+          </div>
+          <div class="ui-settings-pop ui-panel" id="ui-settings" data-open="false" role="dialog" aria-label="Settings">
+            <div class="ui-settings-row">
+              <div class="ui-settings-title">Theme</div>
+              <button class="ui-settings-btn" type="button" data-theme-toggle="true">
+                <span data-theme-label="true">Light</span>
+              </button>
+            </div>
+          </div>
+          <div id="ui-inspector-slot"></div>
+        `;
+      }
+
+      initTheme();
+
+      const uiRoot = document.getElementById("ui-root");
+      createShell(uiRoot);
+
+      const topbarMount = document.getElementById("ui-topbar");
+      const sidebarMount = document.getElementById("ui-sidebar");
+      const inspectorMount = document.getElementById("ui-inspector-slot");
+      const viewport = document.getElementById("ui-viewport");
+
+      const canvas = document.getElementById("scene");
+      if (canvas && viewport && canvas.parentElement !== viewport) viewport.appendChild(canvas);
+
+      await Promise.all([
+        loadInto("/ui/topbar/Topbar.html", topbarMount),
+        loadInto("/ui/sidebar/Sidebar.html", sidebarMount),
+        loadInto("/ui/inspector/InspectorCard.html", inspectorMount)
+      ]);
+
+      createIcons(uiRoot);
+
+      const api = createSelectionAPI();
+      window.EditorUI = {
+        ...api,
+        toggleTheme
+      };
+
+      bindTopbar(topbarMount);
+      bindSidebar(sidebarMount);
+
+      const inspector = bindInspector(inspectorMount, api);
+      inspector.updateUI();
+
+      const settings = document.getElementById("ui-settings");
+      bindSettings(settings);
+
+      window.addEventListener("ui:selection", () => inspector.updateUI());
+
+      window.addEventListener("ui:settings", () => {
+        const open = settings.getAttribute("data-open") === "true";
+        settings.setAttribute("data-open", open ? "false" : "true");
+      });
+
+      window.addEventListener("pointerdown", (e) => {
+        if (settings.getAttribute("data-open") !== "true") return;
+        if (settings.contains(e.target)) return;
+        const btn = topbarMount.querySelector('[data-action="settings"]');
+        if (btn && btn.contains(e.target)) return;
+        settings.setAttribute("data-open", "false");
+      });
+
+      window.addEventListener("editor:selection", (e) => {
+        const d = e.detail;
+        if (!d) return api.clearSelection();
+        const rot = d.rotation || d.rot || d.euler || [0, 0, 0];
+        api.setSelectedObject({
+          id: d.id ?? null,
+          name: d.name ?? d.objectType ?? "Object",
+          position: { x: (d.position?.[0] ?? 0), y: (d.position?.[1] ?? 0), z: (d.position?.[2] ?? 0) },
+          rotation: { x: maybeRadToDeg(rot[0] ?? 0), y: maybeRadToDeg(rot[1] ?? 0), z: maybeRadToDeg(rot[2] ?? 0) },
+          scale: { x: (d.scale?.[0] ?? 1), y: (d.scale?.[1] ?? 1), z: (d.scale?.[2] ?? 1) }
+        });
+      });
+    </script>
+  </body>
+</html>
+

@@ -2,99 +2,66 @@ import './style.css'
 
 import { SceneManager } from './core/SceneManager'
 import { Editor } from './core/Editor'
-import { createBox, createCylinder, createSphere } from './core/ShapeFactory';
+import { createBox, createCylinder, createSphere } from './core/ShapeFactory'
 const sceneManager = new SceneManager()
 const editor = new Editor(sceneManager)
 
-editor.add(createBox());
-editor.add(createSphere());
-editor.add(createCylinder());
-
-
-let state =  `
-{
-  "editor_state": {
-    "transform_mode": "translate",
-    "selectedObjectId": "33f0235a-1f2c-41ec-aaa9-fe0fbdefbc25",
-    "snappingEnabled": true,
-    "gridSize": 1
+const w = window as any
+w.editor = editor
+w.sceneManager = sceneManager
+w.EditorActions = {
+  addBox: () => editor.add(createBox()),
+  addCylinder: () => editor.add(createCylinder()),
+  addSphere: () => editor.add(createSphere()),
+  setMode: (mode: "translate" | "rotate" | "scale") => editor.setTransformMode(mode),
+  showGrid: (v: boolean) => sceneManager.showGrid(v),
+  showAxis: (v: boolean) => sceneManager.showAxis(v),
+  setSnapToGrid: (v: boolean) => {
+    editor.snappingEnabled = v
   },
-  "editor_objects": [
-    {
-      "id": "16560f53-4e03-4c80-8ed6-4f235b6ef9ae",
-      "objectType": "box",
-      "params": {
-        "width": 1,
-        "height": 1,
-        "depth": 1
-      },
-      "position": [
-        0,
-        1,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ]
-    },
-    {
-      "id": "d9506b89-f7a0-4e9d-8531-dfaf573c783f",
-      "objectType": "sphere",
-      "params": {
-        "radius": 0.5
-      },
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ]
-    },
-    {
-      "id": "33f0235a-1f2c-41ec-aaa9-fe0fbdefbc25",
-      "objectType": "cylinder",
-      "params": {
-        "radius": 0.5
-      },
-      "position": [
-        0,
-        0,
-        2
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ]
+  setGridSize: (v: number) => {
+    editor.gridSize = Number(v) || 1
+  },
+  deleteSelected: () => {
+    if (editor.selectedObject) editor.remove(editor.selectedObject)
+  },
+  moveSelected: (x: number, y: number, z: number) => editor.moveSelected([x, y, z]),
+  rotateSelectedDeg: (x: number, y: number, z: number) =>
+    editor.rotateSelected([(x * Math.PI) / 180, (y * Math.PI) / 180, (z * Math.PI) / 180]),
+  scaleSelected: (x: number, y: number, z: number) => editor.scaleSelected([x, y, z]),
+  getState: () => {
+    const mode = editor.transform.getMode()
+    const grid = sceneManager.gridHelper.visible
+    const axis = sceneManager.axesHelper.visible
+    const snap = editor.snappingEnabled
+    const gridSize = editor.gridSize
+    const sel = editor.selectedObject
+    return {
+      mode,
+      grid,
+      axis,
+      snap,
+      gridSize,
+      selected: sel
+        ? {
+            id: sel.id,
+            name: sel.objectType,
+            position: sel.mesh.position.toArray(),
+            rotation: [sel.mesh.rotation.x, sel.mesh.rotation.y, sel.mesh.rotation.z],
+            scale: sel.mesh.scale.toArray()
+          }
+        : null
     }
-  ]
-}`
+  },
+  undo:()=>{
+    editor.commandsReciever.undo()
+  }
 
-// await editor.loadScene(state)
-setTimeout(async()=>{
- console.log(editor.saveScene())
-},8000)
+}
+
+w.dispatchEvent(new Event("editor-ready"))
+
+
 function animate() {
   requestAnimationFrame(animate)
   sceneManager.render()

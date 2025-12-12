@@ -5,9 +5,313 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>scene-editor</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+      :root{
+        --bg:#0b1220;
+        --text:#e7eefc;
+        --panel:#0f1a30;
+        --panel-border:#22314d;
+        --accent:#60a5fa;
+        --shadow:0 14px 38px rgba(0,0,0,.45);
+        --radius:10px;
+        --font:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,Noto Sans,Helvetica Neue,sans-serif;
+      }
+      *{box-sizing:border-box}
+      html,body{height:100%}
+      body{margin:0;font-family:var(--font);background:var(--bg);color:var(--text);overflow:hidden}
+      #scene{position:fixed;inset:0;width:100%!important;height:100%!important;display:block;touch-action:none}
+      #ui{position:fixed;inset:0;pointer-events:none}
+      .ui-panel{background:var(--panel);border:1px solid var(--panel-border);border-radius:var(--radius)}
+      .ui-topbar{height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;border-radius:0;border-left:0;border-right:0;border-top:0;pointer-events:auto;position:relative}
+      .ui-topbar-left{display:flex;align-items:center;gap:6px}
+      .ui-menugroup{position:relative;display:flex;align-items:center}
+      .ui-topbar-menu{height:28px;padding:0 10px;border-radius:8px;border:0;background:transparent;color:inherit;cursor:pointer;font-size:13px;letter-spacing:.2px}
+      .ui-topbar-menu:hover{background:color-mix(in srgb,var(--accent) 14%, transparent)}
+      .ui-dropdown{position:absolute;top:34px;left:0;min-width:240px;padding:10px;box-shadow:var(--shadow);z-index:30;display:none}
+      .ui-menugroup:hover .ui-dropdown,.ui-menugroup:focus-within .ui-dropdown{display:block}
+      .ui-menu-item{height:30px;width:100%;padding:0 10px;border-radius:8px;border:0;background:transparent;color:inherit;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-size:12px;text-align:left}
+      .ui-menu-item:hover{background:color-mix(in srgb,var(--accent) 10%, transparent)}
+      .ui-menu-toggle::after{content:"";opacity:.85}
+      .ui-menu-toggle[aria-pressed="true"]::after{content:"✓"}
+      .ui-menu-toggle[aria-pressed="true"]{background:color-mix(in srgb,var(--accent) 10%, var(--panel))}
+      .ui-menu-sep{height:1px;background:var(--panel-border);margin:4px 2px}
+      .ui-menu-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 6px}
+      .ui-menu-label{font-size:12px;opacity:.85}
+      .ui-menu-input{width:110px;height:30px;border-radius:8px;border:1px solid var(--panel-border);background:transparent;color:inherit;padding:0 10px;font-size:12px}
+      .ui-menu-input:focus{outline:2px solid color-mix(in srgb,var(--accent) 35%, transparent);outline-offset:1px}
+      .ui-icon-btn{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;border:0;background:transparent;color:inherit;cursor:pointer}
+      .ui-icon-btn:hover{background:color-mix(in srgb,var(--accent) 14%, transparent)}
+      .ui-icon-btn svg{width:16px;height:16px}
+      .ui-sidebar{position:absolute;top:40px;left:0;bottom:0;width:48px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 0;border-radius:0;border-left:0;border-bottom:0;pointer-events:auto}
+      .ui-tool{width:36px;height:36px;border-radius:10px;border:0;background:transparent;color:color-mix(in srgb,var(--text) 80%, transparent);cursor:pointer;position:relative;display:grid;place-items:center}
+      .ui-tool:hover{background:color-mix(in srgb,var(--accent) 14%, transparent);color:var(--text)}
+      .ui-tool.is-active{background:color-mix(in srgb,var(--accent) 16%, transparent);color:var(--text)}
+      .ui-tool::after{content:attr(data-tip);position:absolute;left:44px;top:50%;transform:translateY(-50%);padding:6px 8px;border-radius:8px;border:1px solid var(--panel-border);background:var(--panel);box-shadow:var(--shadow);font-size:12px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .12s ease}
+      .ui-tool:hover::after{opacity:1}
+      .ui-tool svg{width:18px;height:18px}
+      .ui-spacer{flex:1}
+      .ui-inspector{position:fixed;right:16px;bottom:16px;width:320px;padding:10px;box-shadow:var(--shadow);z-index:5;pointer-events:auto}
+      .ui-inspector[hidden]{display:none}
+      .ui-inspector-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+      .ui-title{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .ui-del{height:28px;padding:0 10px;border-radius:8px;border:1px solid var(--panel-border);background:transparent;color:inherit;cursor:pointer}
+      .ui-del:hover{border-color:var(--accent)}
+      details{border-top:1px solid var(--panel-border);padding-top:6px;margin-top:6px}
+      details:first-of-type{border-top:0;padding-top:0;margin-top:0}
+      summary{list-style:none;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;height:28px;padding:0 6px;border-radius:8px;font-size:12px;font-weight:600}
+      summary::-webkit-details-marker{display:none}
+      summary:hover{background:color-mix(in srgb,var(--accent) 10%, transparent)}
+      details[open] summary{background:color-mix(in srgb,var(--accent) 8%, transparent)}
+      .ui-body{padding:6px 4px 2px 4px;display:flex;flex-direction:column;gap:6px}
+      .ui-row{display:grid;grid-template-columns:18px 1fr 70px;align-items:center;gap:8px}
+      .ui-axis{font-size:11px;opacity:.8;text-transform:uppercase}
+      input[type="range"]{width:100%;accent-color:var(--accent)}
+      input[type="number"]{width:70px;height:26px;border-radius:8px;border:1px solid var(--panel-border);background:transparent;color:inherit;padding:0 8px;font-size:12px}
+      input[type="number"]:focus{outline:2px solid color-mix(in srgb,var(--accent) 35%, transparent);outline-offset:1px}
+    </style>
   </head>
   <body>
-    <canvas  id="scene"> </canvas>
+    <canvas id="scene"></canvas>
+    <div id="ui">
+      <div class="ui-topbar ui-panel">
+        <div class="ui-topbar-left" role="menubar" aria-label="Top menu">
+          <div class="ui-menugroup">
+            <button class="ui-topbar-menu" type="button">File</button>
+            <div class="ui-dropdown ui-panel" role="menu">
+              <button class="ui-menu-item" type="button" data-ui-action="file.import">Import</button>
+              <button class="ui-menu-item" type="button" data-ui-action="file.export">Export</button>
+            </div>
+          </div>
+          <div class="ui-menugroup">
+            <button class="ui-topbar-menu" type="button">Edit</button>
+            <div class="ui-dropdown ui-panel" role="menu">
+              <button class="ui-menu-item" type="button" data-ui-action="edit.undo">Undo</button>
+              <button class="ui-menu-item" type="button" data-ui-action="edit.redo">Redo</button>
+              <div class="ui-menu-sep"></div>
+              <button class="ui-menu-item" type="button" data-ui-action="add.box">Add Box</button>
+              <button class="ui-menu-item" type="button" data-ui-action="add.cylinder">Add Cylinder</button>
+              <button class="ui-menu-item" type="button" data-ui-action="add.sphere">Add Sphere</button>
+            </div>
+          </div>
+          <div class="ui-menugroup">
+            <button class="ui-topbar-menu" type="button">View</button>
+            <div class="ui-dropdown ui-panel" role="menu">
+              <button class="ui-menu-item ui-menu-toggle" type="button" aria-pressed="false" data-ui-toggle="view.grid">Grid</button>
+              <button class="ui-menu-item ui-menu-toggle" type="button" aria-pressed="false" data-ui-toggle="view.axis">Axis</button>
+            </div>
+          </div>
+          <div class="ui-menugroup">
+            <button class="ui-topbar-menu" type="button">Editor</button>
+            <div class="ui-dropdown ui-panel" role="menu">
+              <button class="ui-menu-item ui-menu-toggle" type="button" aria-pressed="false" data-ui-toggle="editor.snapToGrid">Snap to Grid</button>
+              <div class="ui-menu-row">
+                <div class="ui-menu-label">Grid Size</div>
+                <input class="ui-menu-input" type="number" min="0.01" step="0.01" value="1" data-ui-input="editor.gridSize" />
+              </div>
+            </div>
+          </div>
+          <div class="ui-menugroup">
+            <button class="ui-topbar-menu" type="button">Help</button>
+            <div class="ui-dropdown ui-panel" role="menu">
+              <button class="ui-menu-item" type="button" data-ui-action="help.about">About</button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <button class="ui-icon-btn" type="button" aria-label="Settings" id="btn-settings">
+            <i data-lucide="settings"></i>
+          </button>
+        </div>
+      </div>
+      <div class="ui-sidebar ui-panel">
+        <button class="ui-tool" type="button" data-tip="Select" data-tool="select"><i data-lucide="mouse-pointer-2"></i></button>
+        <button class="ui-tool" type="button" data-tip="Move" data-tool="move"><i data-lucide="move"></i></button>
+        <button class="ui-tool" type="button" data-tip="Rotate" data-tool="rotate"><i data-lucide="rotate-cw"></i></button>
+        <button class="ui-tool" type="button" data-tip="Scale" data-tool="scale"><i data-lucide="scale"></i></button>
+        <div class="ui-spacer"></div>
+        <button class="ui-tool" type="button" data-tip="Add Box" data-tool="add.box"><i data-lucide="box"></i></button>
+        <button class="ui-tool" type="button" data-tip="Add Cylinder" data-tool="add.cylinder"><i data-lucide="database"></i></button>
+        <button class="ui-tool" type="button" data-tip="Add Sphere" data-tool="add.sphere"><i data-lucide="circle"></i></button>
+        <button class="ui-tool" type="button" data-tip="Delete Selected" data-tool="delete"><i data-lucide="trash-2"></i></button>
+      </div>
+
+      <div class="ui-inspector ui-panel" id="inspector" hidden>
+        <div class="ui-inspector-header">
+          <div class="ui-title" id="inspector-name">Selected</div>
+          <button class="ui-del" id="inspector-delete" type="button">Delete</button>
+        </div>
+
+        <details open>
+          <summary>Position</summary>
+          <div class="ui-body">
+            <div class="ui-row" data-bind="position" data-axis="x"><div class="ui-axis">X</div><input type="range" min="-10" max="10" step="0.01" value="0"><input type="number" min="-10" max="10" step="0.01" value="0"></div>
+            <div class="ui-row" data-bind="position" data-axis="y"><div class="ui-axis">Y</div><input type="range" min="-10" max="10" step="0.01" value="0"><input type="number" min="-10" max="10" step="0.01" value="0"></div>
+            <div class="ui-row" data-bind="position" data-axis="z"><div class="ui-axis">Z</div><input type="range" min="-10" max="10" step="0.01" value="0"><input type="number" min="-10" max="10" step="0.01" value="0"></div>
+          </div>
+        </details>
+        <details>
+          <summary>Rotation</summary>
+          <div class="ui-body">
+            <div class="ui-row" data-bind="rotation" data-axis="x"><div class="ui-axis">X</div><input type="range" min="-180" max="180" step="0.1" value="0"><input type="number" min="-180" max="180" step="0.1" value="0"></div>
+            <div class="ui-row" data-bind="rotation" data-axis="y"><div class="ui-axis">Y</div><input type="range" min="-180" max="180" step="0.1" value="0"><input type="number" min="-180" max="180" step="0.1" value="0"></div>
+            <div class="ui-row" data-bind="rotation" data-axis="z"><div class="ui-axis">Z</div><input type="range" min="-180" max="180" step="0.1" value="0"><input type="number" min="-180" max="180" step="0.1" value="0"></div>
+          </div>
+        </details>
+        <details>
+          <summary>Scale</summary>
+          <div class="ui-body">
+            <div class="ui-row" data-bind="scale" data-axis="x"><div class="ui-axis">X</div><input type="range" min="0" max="5" step="0.01" value="1"><input type="number" min="0" max="5" step="0.01" value="1"></div>
+            <div class="ui-row" data-bind="scale" data-axis="y"><div class="ui-axis">Y</div><input type="range" min="0" max="5" step="0.01" value="1"><input type="number" min="0" max="5" step="0.01" value="1"></div>
+            <div class="ui-row" data-bind="scale" data-axis="z"><div class="ui-axis">Z</div><input type="range" min="0" max="5" step="0.01" value="1"><input type="number" min="0" max="5" step="0.01" value="1"></div>
+          </div>
+        </details>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
+    <script type="module">
+      const ui = document.getElementById("ui");
+      const inspector = document.getElementById("inspector");
+      const nameEl = document.getElementById("inspector-name");
+      const rows = [...inspector.querySelectorAll("[data-bind]")];
+      const toggles = {
+        grid: ui.querySelector('[data-ui-toggle="view.grid"]'),
+        axis: ui.querySelector('[data-ui-toggle="view.axis"]'),
+        snap: ui.querySelector('[data-ui-toggle="editor.snapToGrid"]'),
+        gridSize: ui.querySelector('[data-ui-input="editor.gridSize"]')
+      };
+      const tools = [...ui.querySelectorAll("[data-tool]")];
+
+      const createIcons = () => {
+        const lucide = window.lucide;
+        if (!lucide?.createIcons) return;
+        lucide.createIcons();
+      };
+      createIcons();
+
+      const actions = () => window.EditorActions;
+
+      const setPressed = (el, on) => {
+        if (!el) return;
+        el.setAttribute("aria-pressed", on ? "true" : "false");
+      };
+
+      const syncRow = (row, val) => {
+        const r = row.querySelector('input[type="range"]');
+        const n = row.querySelector('input[type="number"]');
+        r.value = String(val);
+        n.value = String(val);
+      };
+
+      const applyFromUI = (bind) => {
+        const get = (axis) => {
+          const row = rows.find((x) => x.getAttribute("data-bind") === bind && x.getAttribute("data-axis") === axis);
+          const n = row.querySelector('input[type="number"]');
+          return Number(n.value) || 0;
+        };
+        const x = get("x"), y = get("y"), z = get("z");
+        if (bind === "position") actions()?.moveSelected(x, y, z);
+        if (bind === "rotation") actions()?.rotateSelectedDeg(x, y, z);
+        if (bind === "scale") actions()?.scaleSelected(x, y, z);
+      };
+
+      rows.forEach((row) => {
+        const bind = row.getAttribute("data-bind");
+        const r = row.querySelector('input[type="range"]');
+        const n = row.querySelector('input[type="number"]');
+        const apply = (raw) => {
+          const min = Number(r.min), max = Number(r.max);
+          const v = Math.min(max, Math.max(min, Number(raw) || 0));
+          syncRow(row, v);
+          applyFromUI(bind);
+        };
+        r.addEventListener("input", (e) => apply(e.target.value));
+        n.addEventListener("change", (e) => apply(e.target.value));
+      });
+
+      ui.addEventListener("click", (e) => {
+        const t = e.target instanceof Element ? e.target : null;
+        if (!t) return;
+        const tool = t.closest("[data-tool]");
+        if (tool) {
+          const name = tool.getAttribute("data-tool");
+          if (name === "move") actions()?.setMode("translate");
+          if (name === "rotate") actions()?.setMode("rotate");
+          if (name === "scale") actions()?.setMode("scale");
+          if (name === "add.box") actions()?.addBox();
+          if (name === "add.cylinder") actions()?.addCylinder();
+          if (name === "add.sphere") actions()?.addSphere();
+          if (name === "delete") actions()?.deleteSelected();
+          return;
+        }
+        const act = t.closest("[data-ui-action]");
+        if (act) {
+          const id = act.getAttribute("data-ui-action");
+          if(id==="edit.undo") actions()?.undo();
+          if (id === "add.box") actions()?.addBox();
+          if (id === "add.cylinder") actions()?.addCylinder();
+          if (id === "add.sphere") actions()?.addSphere();
+          return;
+        }
+        const tog = t.closest("[data-ui-toggle]");
+        if (tog) {
+          const key = tog.getAttribute("data-ui-toggle");
+          const on = tog.getAttribute("aria-pressed") !== "true";
+          setPressed(tog, on);
+          if (key === "view.grid") actions()?.showGrid(on);
+          if (key === "view.axis") actions()?.showAxis(on);
+          if (key === "editor.snapToGrid") actions()?.setSnapToGrid(on);
+          return;
+        }
+        if (t.closest("#inspector-delete")) actions()?.deleteSelected();
+      });
+
+      toggles.gridSize.addEventListener("change", () => actions()?.setGridSize(Number(toggles.gridSize.value) || 1));
+
+      const radToDeg = (r) => (r * 180) / Math.PI;
+      const isEditingInspector = () => inspector.contains(document.activeElement);
+
+      let last = null;
+      const tick = () => {
+        const a = actions();
+        const state = a?.getState?.() || null;
+        if (!state) return requestAnimationFrame(tick);
+
+        setPressed(toggles.grid, !!state.grid);
+        setPressed(toggles.axis, !!state.axis);
+        setPressed(toggles.snap, !!state.snap);
+        if (!toggles.gridSize.matches(":focus")) toggles.gridSize.value = String(state.gridSize ?? 1);
+
+        tools.forEach((b) => b.classList.remove("is-active"));
+        const mode = state.mode;
+        const activeTool = mode === "translate" ? "move" : mode;
+        const btn = tools.find((x) => x.getAttribute("data-tool") === activeTool);
+        if (btn) btn.classList.add("is-active");
+
+        const sel = state.selected;
+        const id = sel?.id || null;
+        if (id !== last) {
+          last = id;
+          inspector.hidden = !sel;
+        }
+        if (sel && !isEditingInspector()) {
+          nameEl.textContent = String(sel.name || "Object");
+          rows.forEach((row) => {
+            const bind = row.getAttribute("data-bind");
+            const axis = row.getAttribute("data-axis");
+            let v = 0;
+            if (bind === "position") v = sel.position[{ x: 0, y: 1, z: 2 }[axis]] ?? 0;
+            if (bind === "rotation") v = radToDeg(sel.rotation[{ x: 0, y: 1, z: 2 }[axis]] ?? 0);
+            if (bind === "scale") v = sel.scale[{ x: 0, y: 1, z: 2 }[axis]] ?? 1;
+            syncRow(row, v);
+          });
+        }
+        requestAnimationFrame(tick);
+      };
+
+      const start = () => requestAnimationFrame(tick);
+      window.addEventListener("editor-ready", start, { once: true });
+      if (actions()?.getState) start();
+    </script>
   </body>
 </html>
