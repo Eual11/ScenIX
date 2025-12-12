@@ -28,6 +28,10 @@ w.EditorActions = {
   setGridSize: (v: number) => {
     editor.gridSize = Number(v) || 1
   },
+  setUndoHistorySize: (v: number)=>{
+    editor.commandsReciever.setMaxHistorySize(Number(v)||1)
+    
+  },
   deleteSelected: () => {
     if (editor.selectedObject) editor.remove(editor.selectedObject)
   },
@@ -41,6 +45,7 @@ w.EditorActions = {
     const axis = sceneManager.axesHelper.visible
     const snap = editor.snappingEnabled
     const gridSize = editor.gridSize
+    const undoSize = editor.commandsReciever.getMaxHistorySize()
     const sel = editor.selectedObject
     return {
       mode,
@@ -48,6 +53,7 @@ w.EditorActions = {
       axis,
       snap,
       gridSize,
+      undoSize,
       selected: sel
         ? {
             id: sel.id,
@@ -61,7 +67,7 @@ w.EditorActions = {
   }
 
 }
-
+//tell windo we are ready
 w.dispatchEvent(new Event("editor-ready"))
 
 

@@ -45,6 +45,10 @@
                 <div class="ui-menu-label">Grid Size</div>
                 <input class="ui-menu-input" type="number" min="0.01" step="0.01" value="1" data-ui-input="editor.gridSize" />
               </div>
+                <div class="ui-menu-row">
+                <div class="ui-menu-label">Undo History Size</div>
+                <input class="ui-menu-input" type="number" min="0" step="1" value="1" data-ui-input="editor.undoSize" />
+              </div>
             </div>
           </div>
           <div class="ui-menugroup">
@@ -55,9 +59,6 @@
           </div>
         </div>
         <div>
-          <button class="ui-icon-btn" type="button" aria-label="Settings" id="btn-settings">
-            <i data-lucide="settings"></i>
-          </button>
         </div>
       </div>
       <div class="ui-help-backdrop" id="help" data-open="false" role="dialog" aria-label="Help">
@@ -81,8 +82,14 @@
                   <div><span style="opacity:.9">Ctrl/Cmd + Y</span> Redo</div>
                   <div><span style="opacity:.9">Shift + M</span>  Move/Translate Mode</div>
                   <div><span style="opacity:.9">Shift + S</span>  Scale Mode</div>
-                  <div><span style="opacity:.9">Shift + R</span>  Rotate Mode</div>
                 </div>
+
+                <div style="font-size:12px;font-weight:600;margin-bottom:6px">Additional Note</div>
+                <div style="font-size:12px;opacity:.85;line-height:1.55;display:flex;flex-direction:column;gap:6px">
+                  <div><span style="opacity:.9">You can increase/decreate undo size for how much command history you can do</span> Undo</div>
+                  <div><span style="opacity:.9">Modify grid size to snap to when snapa to grid is enabled</div>
+                </div>
+
               </div>
             </div>
           </div>
@@ -143,7 +150,9 @@
         grid: ui.querySelector('[data-ui-toggle="view.grid"]'),
         axis: ui.querySelector('[data-ui-toggle="view.axis"]'),
         snap: ui.querySelector('[data-ui-toggle="editor.snapToGrid"]'),
-        gridSize: ui.querySelector('[data-ui-input="editor.gridSize"]')
+        gridSize: ui.querySelector('[data-ui-input="editor.gridSize"]'),
+        undoSize: ui.querySelector('[data-ui-input="editor.undoSize"]')
+
       };
       const tools = [...ui.querySelectorAll("[data-tool]")];
 
@@ -266,6 +275,8 @@
       });
 
       toggles.gridSize.addEventListener("change", () => actions()?.setGridSize(Number(toggles.gridSize.value) || 1));
+      toggles.undoSize.addEventListener("change", () => actions()?.setUndoHistorySize(Number(toggles.undoSize.value) || 1));
+
 
       const radToDeg = (r) => (r * 180) / Math.PI;
       const isEditingInspector = () => inspector.contains(document.activeElement);
@@ -280,6 +291,7 @@
         setPressed(toggles.axis, !!state.axis);
         setPressed(toggles.snap, !!state.snap);
         if (!toggles.gridSize.matches(":focus")) toggles.gridSize.value = String(state.gridSize ?? 1);
+        if (!toggles.undoSize.matches(":focus")) toggles.undoSize.value = String(state.undoSize ?? 1);
 
         tools.forEach((b) => b.classList.remove("is-active"));
         const mode = state.mode;

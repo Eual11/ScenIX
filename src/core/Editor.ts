@@ -16,7 +16,7 @@ export class Editor {
   currentActiveCmd: TransformCommand | null = null
   objects: Map<string, EditorObject> = new Map()
   gridSize: number = 1
-  snappingEnabled: boolean = true
+  snappingEnabled: boolean = false
   constructor(public sceneManager: SceneManager) {
     this.transform = new TransformControls(sceneManager.camera, sceneManager.renderer.domElement)
     sceneManager.scene.add(this.transform.getHelper())
