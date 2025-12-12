@@ -24,5 +24,5 @@ export function createCylinder(radius = 0.5,height=1,position:[number,number,num
     new MeshNormalMaterial()
   )
   mesh.position.set(...position)
-  return new EditorObject(mesh, "sphere", { radius })
+  return new EditorObject(mesh, "cylinder", { radius })
 }

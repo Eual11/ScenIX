@@ -58,7 +58,7 @@ export class SceneManager {
 
     this.axesHelper = new AxesHelper(4);
     this.axesHelper.visible = this._axisEnabled; 
-    this.gridHelper = new GridHelper(10, 10);
+    this.gridHelper = new GridHelper(100, 100);
     this.gridHelper.visible = this._gridEnabled;
 
     this.scene.add(this.gridHelper);

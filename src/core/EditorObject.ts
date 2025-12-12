@@ -8,8 +8,8 @@ export class EditorObject {
   //Additioanl parameters if i need them
   params: any
 
-  constructor(mesh: Object3D, obj_type: EditorObjectType, params: any) {
-    this.id = crypto.randomUUID()
+  constructor(mesh: Object3D, obj_type: EditorObjectType, params: any,id?:string) {
+    this.id = id ?? crypto.randomUUID()
     this.mesh = mesh
     this.mesh.userData.editorId = this.id
     this.objectType = obj_type
@@ -20,7 +20,7 @@ export class EditorObject {
 
     return {
       id: this.id,
-      type: this.objectType,
+      objectType: this.objectType,
       params: this.params,
       position: this.mesh.position.toArray(),
       rotation: [
