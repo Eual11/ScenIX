@@ -7,10 +7,6 @@ import {
   WebGLRenderer,
   AxesHelper,
   GridHelper,
-  BoxGeometry,
-  MeshNormalMaterial,
-  Mesh,
-  Object3D,
   Vector2,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
